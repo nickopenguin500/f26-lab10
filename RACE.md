@@ -85,11 +85,37 @@ org.opentest4j.AssertionFailedError: expected: <1> but was: <2>
 
 **Your milestone-1 test on the patched code.** Green or red. Paste the result.
 
+**Result: Green**
+```
+2026-11-06T00:41:15.692Z INFO booking.confirmed booking=bk-1 room=WEH-5409 start=540 end=600
+2026-11-06T00:41:15.695Z INFO booking.rejected room=WEH-5409 start=540 end=600 reason=slot already held
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in edu.cmu.cs214.lab10.harness.RaceTest
+[INFO] BUILD SUCCESS
+```
+
 **The re-aimed run.** Method name, call index, the pasted result, and one line
 on why that aim tests the patch rather than sidestepping it.
 
+- **Method name:** `hasOverlap`
+- **Call index:** `2`
+- **Result: Red (Fails deterministically)**
+```
+2026-11-06T00:41:30.971Z INFO booking.confirmed booking=bk-1 room=WEH-5409 start=540 end=600
+2026-11-06T00:41:30.974Z INFO booking.rejected room=WEH-5409 start=540 end=600 reason=slot already held
+2026-11-06T00:41:30.980Z INFO booking.confirmed booking=bk-2 room=WEH-5409 start=540 end=600
+2026-11-06T00:41:30.980Z INFO booking.confirmed booking=bk-1 room=WEH-5409 start=540 end=600
+[ERROR] Tests run: 2, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.029 s <<< FAILURE! -- in edu.cmu.cs214.lab10.harness.RaceTest
+[ERROR] edu.cmu.cs214.lab10.harness.RaceTest.twoConcurrentBookingsBreaksTeammatePatch -- Time elapsed: 0.004 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <1> but was: <2>
+```
+- **Why this aim tests the patch rather than sidestepping it:**
+Aiming at call 2 pauses Thread A directly after it passes the teammate's newly added second `hasOverlap` check and right before `insert`. This tests whether the patch actually closed the window between checking and inserting, proving that another thread can still insert a booking in that remaining window and cause a double-booking.
+
 **Your verdict.** Accept or reject, and what your milestone-1 result does and
 does not show about the patch.
+
+- **Verdict: Reject.**
+- **Analysis:** The green milestone-1 result only shows that pausing at the *first* check was caught by the second check; it does **not** prove the race condition was fixed. The teammate's patch merely narrowed the timing window between checking and inserting without making the composite operation atomic. A second check-then-act is still a check-then-act, leaving a window where two threads can still produce overlapping confirmed bookings.
 
 ---
 

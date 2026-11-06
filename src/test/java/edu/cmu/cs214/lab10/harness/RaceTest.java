@@ -35,4 +35,25 @@ class RaceTest {
 
         assertEquals(1, real.bookingsForRoom(ROOM).size());
     }
+
+    @Test
+    void twoConcurrentBookingsBreaksTeammatePatch() throws InterruptedException {
+        InMemoryBookingStore real = new InMemoryBookingStore();
+        PausingStore gated = new PausingStore(real, "hasOverlap", 2);
+        BookingService service = new BookingService(gated, ROOMS);
+
+        Thread threadA = new Thread(() -> service.book(ROOM, 540, 600), "thread-A");
+        threadA.start();
+
+        gated.awaitPaused();
+
+        Thread threadB = new Thread(() -> service.book(ROOM, 540, 600), "thread-B");
+        threadB.start();
+        threadB.join(PausingStore.TIMEOUT_MILLIS);
+
+        gated.release();
+        threadA.join(PausingStore.TIMEOUT_MILLIS);
+
+        assertEquals(1, real.bookingsForRoom(ROOM).size());
+    }
 }
