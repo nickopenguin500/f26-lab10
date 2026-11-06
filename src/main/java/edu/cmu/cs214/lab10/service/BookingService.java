@@ -59,7 +59,7 @@ public final class BookingService {
      *
      * @return CONFIRMED with the new booking, or REJECTED with a reason
      */
-    public BookingResult book(String roomId, int startMinute, int endMinute) {
+    public synchronized BookingResult book(String roomId, int startMinute, int endMinute) {
         Room room = catalog.get(roomId);
         if (room == null) {
             return reject(roomId, startMinute, endMinute, "unknown room");

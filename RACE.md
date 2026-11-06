@@ -125,13 +125,46 @@ does not show about the patch.
 and the two operations it now covers. Paste the diff of your change and the
 passing run of your milestone-1 test and the full suite.
 
+- **Option chosen:** Option 1 (`synchronized` on the service's booking path).
+- **Lock and operations covered:** The intrinsic lock on the `BookingService` instance (`this`). It now covers both the `store.hasOverlap(roomId, ...)` check and the `store.insert(booking)` operation as an indivisible critical section.
+- **Diff:**
+```diff
+diff --git a/src/main/java/edu/cmu/cs214/lab10/service/BookingService.java b/src/main/java/edu/cmu/cs214/lab10/service/BookingService.java
+index 514c3e1..a2eb4c7 100644
+--- a/src/main/java/edu/cmu/cs214/lab10/service/BookingService.java
++++ b/src/main/java/edu/cmu/cs214/lab10/service/BookingService.java
+@@ -62,3 +62,3 @@ public final class BookingService {
+-    public BookingResult book(String roomId, int startMinute, int endMinute) {
++    public synchronized BookingResult book(String roomId, int startMinute, int endMinute) {
+```
+- **Passing run of milestone-1 test (`mvn test -Dtest=RaceTest`):**
+```
+2026-11-06T00:42:52.935Z INFO booking.confirmed booking=bk-1 room=WEH-5409 start=540 end=600
+2026-11-06T00:42:52.941Z INFO booking.rejected room=WEH-5409 start=540 end=600 reason=slot already held
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.036 s -- in edu.cmu.cs214.lab10.harness.RaceTest
+[INFO] BUILD SUCCESS
+```
+- **Passing run of full suite (`mvn -B test`):**
+```
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+
 **Is your milestone-1 test still testing anything?** After your fix, describe
 what that test now exercises. Did `PausingStore` pause a call during the green run? How do
 you know?
+
+- **What the test exercises:** It now verifies that concurrent callers to `book` are mutually excluded. Thread A enters `book`, acquires the `BookingService` monitor lock, and calls `store.hasOverlap`. When Thread B attempts to book concurrently, it cannot interleave; it is blocked waiting for the `BookingService` monitor lock.
+- **Did `PausingStore` pause during the green run?** Yes.
+- **How we know:** `gated.awaitPaused()` returned `true` (and `gated.fired()` is true). Thread A reached call 1 of `hasOverlap` and paused inside `PausingStore` while holding the service lock. Thread B was kept waiting on the monitor lock outside `book` until `gated.release()` allowed Thread A to finish and release the lock.
 
 **What runs one at a time now that ran in parallel before.** Name concretely which callers
 queue behind which. "Nothing, it is just correct now" does not count as an
 answer.
 
+- Every concurrent caller invoking `BookingService.book(...)` on the same service instance now runs one at a time. Concretely, a caller booking room `GHC-4301` from 12:00 to 13:00 will now queue behind a caller booking room `WEH-5409` from 09:00 to 10:00, even though their rooms and time slots are completely independent.
+
 **What you left unfixed.** For anything your review flagged that you chose not
 to fix, one line each on why.
+
+- `BookingStats` counters (`confirmed`, `waitlisted`, `rejected`, `cancelled`) use unsynchronized `long` fields: left unfixed because they are explicitly documented as approximate for ops dashboards, never affect business decisions or room reservations, and avoiding lock contention on stats is an intentional design choice.

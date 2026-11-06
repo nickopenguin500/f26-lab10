@@ -74,3 +74,7 @@ depends on them. Count the bookings in the store when you need an exact number.
 
 See the Lab 10 handout on the course page for the three milestones you show a
 TA.
+
+## Tooling
+
+Assisted by Antigravity using Gemini 3.8 Flash.
