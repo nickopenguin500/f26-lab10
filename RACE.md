@@ -49,12 +49,35 @@ as your prediction needs.
 
 If the run turned out different from your prediction, add one line on what
 you missed. Leave the table as you first wrote it.
+None; the test executed exactly as predicted.
 
 ### Your race test
 
 **How you aimed `PausingStore`, and the result.** Method name and call index, why
 that pair pins the schedule you predicted, and the output of two separate
 runs (assertion failure and log lines).
+
+- **Method name:** `hasOverlap`
+- **Call index:** `1`
+- **Why this pair pins the schedule:** Aiming at `hasOverlap` call 1 pauses Thread A immediately after its overlap check returns `false`, before it can call `insert`. While Thread A is held, Thread B calls `book`, checks `hasOverlap` (call 2, which does not pause), sees the slot still empty, and inserts its confirmed booking (`bk-1`). When Thread A is released, it resumes and inserts its confirmed booking (`bk-2`) without re-checking. This deterministically produces two confirmed bookings for the same room and slot.
+
+#### Run 1 output:
+```
+2026-11-06T00:40:57.233Z INFO booking.confirmed booking=bk-1 room=WEH-5409 start=540 end=600
+2026-11-06T00:40:57.235Z INFO booking.confirmed booking=bk-2 room=WEH-5409 start=540 end=600
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.025 s <<< FAILURE! -- in edu.cmu.cs214.lab10.harness.RaceTest
+[ERROR] edu.cmu.cs214.lab10.harness.RaceTest.twoConcurrentBookingsForSameSlotProduceOnlyOneConfirmed -- Time elapsed: 0.017 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <1> but was: <2>
+```
+
+#### Run 2 output:
+```
+2026-11-06T00:41:02.003Z INFO booking.confirmed booking=bk-1 room=WEH-5409 start=540 end=600
+2026-11-06T00:41:02.005Z INFO booking.confirmed booking=bk-2 room=WEH-5409 start=540 end=600
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.025 s <<< FAILURE! -- in edu.cmu.cs214.lab10.harness.RaceTest
+[ERROR] edu.cmu.cs214.lab10.harness.RaceTest.twoConcurrentBookingsForSameSlotProduceOnlyOneConfirmed -- Time elapsed: 0.017 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: expected: <1> but was: <2>
+```
 
 ---
 
